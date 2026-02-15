@@ -3,89 +3,129 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IKIZULIVETH</title>
+<title>IKIZULIVE</title>
 
 <style>
 body{
   margin:0;
-  font-family:Arial, sans-serif;
-  background:#ffffff;
+  font-family:Arial, Helvetica, sans-serif;
+  background:#e9ecef;
 }
 
-header{
-  padding:20px;
-  font-size:24px;
-  font-weight:bold;
-  border-bottom:1px solid #ddd;
-}
-
-.container{
+/* Layout */
+.wrapper{
   display:flex;
-  max-width:1200px;
-  margin:auto;
+  height:100vh;
 }
 
-.main{
-  width:70%;
+/* LEFT PANEL */
+.left{
+  width:250px;
+  background:#f1f1f1;
   padding:20px;
+  border-right:1px solid #ccc;
 }
 
-.timeline{
-  width:30%;
-  border-left:1px solid #ddd;
-  padding:20px;
-  background:#fafafa;
+.left h2{
+  margin-top:0;
 }
 
-.post{
-  margin-bottom:40px;
+.left textarea{
+  width:100%;
+  margin-bottom:10px;
 }
 
-.post p{
-  margin-top:10px;
-}
-
-button{
-  padding:6px 10px;
-  margin-top:8px;
+.left button{
+  background:black;
+  color:white;
+  border:none;
+  padding:8px 12px;
   cursor:pointer;
 }
 
-textarea{
-  width:100%;
-  height:100px;
-  margin-top:10px;
+/* CENTER */
+.center{
+  flex:1;
+  padding:30px;
+  overflow-y:auto;
 }
 
-.timeline button{
+.post-card{
+  background:white;
+  padding:20px;
+  border-radius:12px;
+  margin-bottom:30px;
+}
+
+.post-actions{
+  margin-top:15px;
+}
+
+.btn-dark{
+  background:black;
+  color:white;
+  border:none;
+  padding:6px 12px;
+  margin-right:5px;
+  cursor:pointer;
+}
+
+.btn-danger{
+  background:#dc3545;
+  color:white;
+  border:none;
+  padding:6px 12px;
+  cursor:pointer;
+}
+
+/* RIGHT PANEL */
+.right{
+  width:250px;
+  background:#f8f9fa;
+  padding:20px;
+  border-left:1px solid #ccc;
+}
+
+.timeline-btn{
   display:block;
   width:100%;
-  margin-bottom:8px;
+  margin-bottom:10px;
+  background:#333;
+  color:white;
+  border:none;
+  padding:10px;
+  cursor:pointer;
 }
 </style>
 </head>
 
 <body>
 
-<header>IKIZULIVETH</header>
+<div class="wrapper">
 
-<div class="container">
+<!-- LEFT -->
+<div class="left">
+<h2>IKIZULIVE</h2>
 
-<div class="main">
+<h4>เพิ่มหลายโพสต์</h4>
+<p>ลิงก์ (1 บรรทัด = 1 ลิงก์)</p>
+<textarea id="linkInput" rows="5"></textarea>
 
-<h3>เพิ่มหลายโพสต์พร้อมกัน</h3>
-<p>รูปแบบ: postId | คำแปล | YYYY-MM-DD</p>
-<textarea id="bulkInput"></textarea>
+<p>คำแปล</p>
+<textarea id="translateInput" rows="5"></textarea>
+
 <button onclick="addPosts()">เพิ่มโพสต์</button>
-
-<hr>
-
-<div id="posts"></div>
-
 </div>
 
-<div class="timeline">
+<!-- CENTER -->
+<div class="center">
+<div id="posts"></div>
+</div>
+
+<!-- RIGHT -->
+<div class="right">
 <h3>Timeline</h3>
+<button class="timeline-btn" onclick="showAll()">แสดงทั้งหมด</button>
 <div id="timelineButtons"></div>
 </div>
 
@@ -106,88 +146,102 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const postsRef = collection(db, "posts");
+const postsRef = collection(db,"posts");
 
 const postsContainer = document.getElementById("posts");
 const timelineContainer = document.getElementById("timelineButtons");
 
-function render(snapshot){
+let allPosts=[];
 
+function render(posts){
   postsContainer.innerHTML="";
-  timelineContainer.innerHTML="";
+  posts.forEach(p=>createPost(p));
+  if(window.twttr) window.twttr.widgets.load();
+}
 
+function createPost(post){
+  const div=document.createElement("div");
+  div.className="post-card";
+
+  div.innerHTML=`
+    <blockquote class="twitter-tweet">
+      <a href="https://twitter.com/i/status/${post.postId}"></a>
+    </blockquote>
+
+    <div class="post-actions">
+      <button class="btn-dark" onclick="toggleTranslate('${post.id}')">ดูคำแปล</button>
+      <button class="btn-danger" onclick="deletePost('${post.id}')">ลบ</button>
+    </div>
+
+    <p id="trans-${post.id}" style="display:none;margin-top:10px;">
+      ${post.content}
+    </p>
+  `;
+
+  postsContainer.appendChild(div);
+}
+
+window.toggleTranslate=(id)=>{
+  const el=document.getElementById("trans-"+id);
+  el.style.display = el.style.display==="none"?"block":"none";
+}
+
+window.deletePost=async(id)=>{
+  await deleteDoc(doc(db,"posts",id));
+}
+
+window.addPosts=async()=>{
+  const links=document.getElementById("linkInput").value.split("\n");
+  const translate=document.getElementById("translateInput").value;
+
+  for(let link of links){
+    if(!link.trim()) continue;
+    const postId=link.split("/").pop();
+
+    await addDoc(postsRef,{
+      postId:postId,
+      content:translate,
+      createdAt:Timestamp.now()
+    });
+  }
+
+  document.getElementById("linkInput").value="";
+  document.getElementById("translateInput").value="";
+}
+
+window.showAll=()=>{
+  render(allPosts);
+}
+
+const q=query(postsRef,orderBy("createdAt","asc"));
+
+onSnapshot(q,(snapshot)=>{
+  allPosts=[];
   let monthMap={};
+  timelineContainer.innerHTML="";
 
   snapshot.forEach(docSnap=>{
     const data=docSnap.data();
     const date=data.createdAt.toDate();
     const key=`${date.getMonth()+1}-${date.getFullYear()}`;
 
+    const post={id:docSnap.id,...data};
+    allPosts.push(post);
+
     if(!monthMap[key]) monthMap[key]=[];
-    monthMap[key].push({id:docSnap.id,...data});
+    monthMap[key].push(post);
   });
 
   Object.keys(monthMap).forEach(key=>{
-    const [month,year]=key.split("-");
+    const [m,y]=key.split("-");
     const btn=document.createElement("button");
-    btn.innerText=`เดือนที่ ${month} ปี ${year}`;
-    btn.onclick=()=>{
-      postsContainer.innerHTML="";
-      monthMap[key].forEach(post=>createPost(post));
-      if(window.twttr) window.twttr.widgets.load();
-    };
+    btn.className="timeline-btn";
+    btn.innerText=`เดือนที่ ${m} ปี ${y}`;
+    btn.onclick=()=>render(monthMap[key]);
     timelineContainer.appendChild(btn);
   });
 
-  snapshot.forEach(docSnap=>{
-    createPost({id:docSnap.id,...docSnap.data()});
-  });
-
-  if(window.twttr) window.twttr.widgets.load();
-}
-
-function createPost(post){
-  const div=document.createElement("div");
-  div.className="post";
-
-  div.innerHTML=`
-    <blockquote class="twitter-tweet">
-      <a href="https://twitter.com/i/status/${post.postId}"></a>
-    </blockquote>
-    <p>${post.content}</p>
-    <button onclick="deletePost('${post.id}')">ลบโพสต์</button>
-    <hr>
-  `;
-
-  postsContainer.appendChild(div);
-}
-
-window.deletePost=async(id)=>{
-  await deleteDoc(doc(db,"posts",id));
-};
-
-window.addPosts=async()=>{
-  const raw=document.getElementById("bulkInput").value;
-  const lines=raw.split("\n");
-
-  for(let line of lines){
-    if(!line.trim()) continue;
-
-    const [postId,content,dateStr]=line.split("|");
-
-    await addDoc(postsRef,{
-      postId:postId.trim(),
-      content:content.trim(),
-      createdAt:Timestamp.fromDate(new Date(dateStr.trim()))
-    });
-  }
-
-  document.getElementById("bulkInput").value="";
-};
-
-const q=query(postsRef,orderBy("createdAt","asc"));
-onSnapshot(q,(snapshot)=>{
-  render(snapshot);
+  render(allPosts);
 });
 </script>
 
