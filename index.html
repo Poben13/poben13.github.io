@@ -17,15 +17,13 @@ body{
   height:100vh;
 }
 
-/* LEFT PANEL */
+/* LEFT */
 .left{
   width:260px;
   background:#f1f1f1;
   padding:20px;
   border-right:1px solid #ccc;
 }
-
-.left h2{ margin-top:0; }
 
 .left textarea{
   width:100%;
@@ -104,7 +102,6 @@ body{
 
 <div class="wrapper">
 
-<!-- LEFT -->
 <div class="left">
 <h2>IKIZULIVE</h2>
 
@@ -118,12 +115,10 @@ body{
 <button onclick="addPosts()">เพิ่มโพสต์</button>
 </div>
 
-<!-- CENTER -->
 <div class="center">
 <div id="posts"></div>
 </div>
 
-<!-- RIGHT -->
 <div class="right">
 <h3>Timeline</h3>
 <button class="timeline-btn" onclick="showAll()">แสดงทั้งหมด</button>
@@ -134,12 +129,26 @@ body{
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { 
+  getFirestore, 
+  collection, 
+  addDoc, 
+  deleteDoc, 
+  doc, 
+  onSnapshot, 
+  query, 
+  orderBy, 
+  Timestamp 
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+/* 🔥 ใส่ config ของคุณ */
 const firebaseConfig = {
-  apiKey: "YOUR_KEY",
-  authDomain: "YOUR_DOMAIN",
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_AUTH_DOMAIN",
   projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_STORAGE_BUCKET",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -154,9 +163,13 @@ let monthMap = {};
 
 /* ===== แปลง Tweet ID เป็นวันที่ ===== */
 function getDateFromTweetId(postId){
-  const twitterEpoch = 1288834974657n;
-  const timestamp = (BigInt(postId) >> 22n) + twitterEpoch;
-  return new Date(Number(timestamp));
+  try{
+    const twitterEpoch = 1288834974657n;
+    const timestamp = (BigInt(postId) >> 22n) + twitterEpoch;
+    return new Date(Number(timestamp));
+  }catch{
+    return new Date();
+  }
 }
 
 /* ===== แสดงโพสต์ ===== */
@@ -171,7 +184,6 @@ function createPost(post){
   const div=document.createElement("div");
   div.className="post-card";
 
-  // รองรับทั้ง postIds (ใหม่) และ postId (เก่า)
   const ids = post.postIds || [post.postId];
 
   let tweetsHTML = "";
@@ -186,12 +198,10 @@ function createPost(post){
 
   div.innerHTML = `
     ${tweetsHTML}
-
     <div class="post-actions">
       <button class="btn-dark" onclick="toggleTranslate('${post.id}')">ดูคำแปล</button>
       <button class="btn-danger" onclick="deletePost('${post.id}')">ลบ</button>
     </div>
-
     <p id="trans-${post.id}" style="display:none;margin-top:10px;">
       ${post.content || ""}
     </p>
@@ -200,7 +210,7 @@ function createPost(post){
   postsContainer.appendChild(div);
 }
 
-/* ===== ปุ่มคำแปล ===== */
+/* ===== toggle คำแปล ===== */
 window.toggleTranslate=(id)=>{
   const el=document.getElementById("trans-"+id);
   el.style.display = el.style.display==="none"?"block":"none";
@@ -211,7 +221,7 @@ window.deletePost=async(id)=>{
   await deleteDoc(doc(db,"posts",id));
 }
 
-/* ===== เพิ่มหลายลิงก์ในคราวเดียว (รวมเป็นการ์ดเดียว) ===== */
+/* ===== เพิ่มโพสต์ ===== */
 window.addPosts=async()=>{
   const links=document.getElementById("linkInput").value.split("\n");
   const translate=document.getElementById("translateInput").value;
@@ -233,12 +243,15 @@ window.addPosts=async()=>{
     }
   }
 
-  if(postIds.length===0) return;
+  if(postIds.length===0){
+    alert("ไม่พบลิงก์ที่ถูกต้อง");
+    return;
+  }
 
   await addDoc(postsRef,{
     postIds:postIds,
     content:translate,
-    createdAt:Timestamp.fromDate(autoDate)
+    createdAt:autoDate ? Timestamp.fromDate(autoDate) : Timestamp.now()
   });
 
   document.getElementById("linkInput").value="";
@@ -257,7 +270,10 @@ onSnapshot(q,(snapshot)=>{
 
   snapshot.forEach(docSnap=>{
     const data=docSnap.data();
-    if(!data.createdAt) return;
+
+    if(!data.createdAt){
+      data.createdAt = Timestamp.now();
+    }
 
     const date=data.createdAt.toDate();
     const month=date.getMonth()+1;
