@@ -25,9 +25,11 @@ body{
   border-right:1px solid #ccc;
 }
 
-.left textarea{
+.left textarea,
+.left input{
   width:100%;
   margin-bottom:10px;
+  padding:8px;
 }
 
 .left button{
@@ -37,6 +39,11 @@ body{
   border:none;
   padding:10px;
   cursor:pointer;
+}
+
+.admin-status{
+  font-size:14px;
+  margin-bottom:10px;
 }
 
 /* CENTER */
@@ -100,35 +107,19 @@ body{
   border-radius:8px;
 }
 
-/* ========================= */
-/* 📱 MOBILE RESPONSIVE */
-/* ========================= */
-@media (max-width: 900px){
-
+/* MOBILE */
+@media (max-width:900px){
   .wrapper{
     flex-direction:column;
     height:auto;
   }
-
-  .left,
-  .right{
+  .left,.right{
     width:100%;
     border:none;
   }
-
   .center{
     padding:15px;
   }
-
-  .post-card{
-    padding:15px;
-  }
-
-  .btn-dark,
-  .btn-danger{
-    margin-top:5px;
-  }
-
 }
 </style>
 </head>
@@ -140,6 +131,13 @@ body{
 <!-- LEFT -->
 <div class="left">
 <h2>IKIZULIVE</h2>
+
+<h4>รหัสแอดมิน</h4>
+<input type="password" id="adminCode" placeholder="กรอกรหัสแอดมิน">
+<button onclick="checkAdmin()">เข้าสู่ระบบ</button>
+<div class="admin-status" id="adminStatus">ยังไม่ได้เข้าสู่ระบบ</div>
+
+<hr>
 
 <h4>เพิ่มหลายโพสต์</h4>
 <p>1 บรรทัด = 1 ลิงก์</p>
@@ -169,6 +167,25 @@ body{
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, collection, addDoc, deleteDoc, updateDoc, doc, onSnapshot, query, orderBy, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+const ADMIN_PASSWORD = "6767";
+let isAdmin = false;
+
+window.checkAdmin = () => {
+  const input = document.getElementById("adminCode").value;
+  const status = document.getElementById("adminStatus");
+
+  if(input === ADMIN_PASSWORD){
+    isAdmin = true;
+    status.innerText = "เข้าสู่ระบบสำเร็จ ✅";
+    status.style.color = "green";
+  }else{
+    isAdmin = false;
+    status.innerText = "รหัสไม่ถูกต้อง ❌";
+    status.style.color = "red";
+  }
+};
+
+/* Firebase */
 const firebaseConfig = {
   apiKey: "YOUR_API_KEY",
   authDomain: "ikizuliveth.firebaseapp.com",
@@ -234,13 +251,20 @@ window.toggleTranslate=id=>{
 }
 
 window.deletePost=async id=>{
+  if(!isAdmin){
+    alert("คุณไม่มีสิทธิ์ลบโพสต์ ❌");
+    return;
+  }
   await deleteDoc(doc(db,"posts",id));
 }
 
 window.editPost=async id=>{
-  const post = allPosts.find(p=>p.id===id);
-  if(!post) return;
+  if(!isAdmin){
+    alert("คุณไม่มีสิทธิ์แก้ไข ❌");
+    return;
+  }
 
+  const post = allPosts.find(p=>p.id===id);
   const newContent=prompt("แก้ไขคำแปล:",post.content);
   if(newContent===null) return;
 
