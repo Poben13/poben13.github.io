@@ -75,6 +75,11 @@ body{
   cursor:pointer;
 }
 
+.translation{
+  margin-top:10px;
+  white-space:pre-line; /* ทำให้เว้นบรรทัดได้ */
+}
+
 /* RIGHT */
 .right{
   width:260px;
@@ -169,10 +174,20 @@ function createPost(post){
   const div=document.createElement("div");
   div.className="post-card";
 
+  let tweetsHTML = "";
+
+  if(post.postIds){
+    post.postIds.forEach(id=>{
+      tweetsHTML += `
+        <blockquote class="twitter-tweet">
+          <a href="https://twitter.com/i/status/${id}"></a>
+        </blockquote>
+      `;
+    });
+  }
+
   div.innerHTML=`
-    <blockquote class="twitter-tweet">
-      <a href="https://twitter.com/i/status/${post.postId}"></a>
-    </blockquote>
+    ${tweetsHTML}
 
     <div class="post-actions">
       <button class="btn-dark" onclick="toggleTranslate('${post.id}')">ดูคำแปล</button>
@@ -180,11 +195,9 @@ function createPost(post){
       <button class="btn-danger" onclick="deletePost('${post.id}')">ลบ</button>
     </div>
 
-    <p id="trans-${post.id}" 
-   style="display:none;margin-top:10px; white-space: pre-line;">
-  ${post.content}
-</p>
-
+    <p id="trans-${post.id}" class="translation" style="display:none;">
+      ${post.content}
+    </p>
   `;
 
   postsContainer.appendChild(div);
@@ -201,48 +214,42 @@ window.deletePost=async(id)=>{
   await deleteDoc(doc(db,"posts",id));
 }
 
-/* ===== แก้ไขโพสต์ ===== */
-window.editPost = async (id) => {
+/* ===== แก้ไขคำแปล ===== */
+window.editPost=async(id)=>{
   const post = allPosts.find(p=>p.id===id);
   if(!post) return;
 
   const newContent = prompt("แก้ไขคำแปล:", post.content);
   if(newContent === null) return;
 
-  try{
-    await updateDoc(doc(db,"posts",id),{
-      content:newContent
-    });
-  }catch(err){
-    console.error("แก้ไขไม่สำเร็จ:",err);
-  }
-};
+  await updateDoc(doc(db,"posts",id),{
+    content:newContent
+  });
+}
 
-/* ===== เพิ่มโพสต์ ===== */
+/* ===== เพิ่มโพสต์ (หลายลิงก์ = 1 การ์ด) ===== */
 window.addPosts=async()=>{
   const links=document.getElementById("linkInput").value.split("\n");
   const translate=document.getElementById("translateInput").value;
 
+  const postIds=[];
+
   for(let link of links){
     if(!link.trim()) continue;
-
-    try{
-      const match = link.match(/status\/(\d+)/);
-      if(!match) continue;
-
-      const postId = match[1];
-      const autoDate = getDateFromTweetId(postId);
-
-      await addDoc(postsRef,{
-        postId:postId,
-        content:translate,
-        createdAt:Timestamp.fromDate(autoDate)
-      });
-
-    }catch(err){
-      console.error("เพิ่มโพสต์ไม่สำเร็จ:", link, err);
-    }
+    const match=link.match(/status\/(\d+)/);
+    if(!match) continue;
+    postIds.push(match[1]);
   }
+
+  if(postIds.length===0) return;
+
+  const autoDate=getDateFromTweetId(postIds[0]);
+
+  await addDoc(postsRef,{
+    postIds:postIds,
+    content:translate,
+    createdAt:Timestamp.fromDate(autoDate)
+  });
 
   document.getElementById("linkInput").value="";
   document.getElementById("translateInput").value="";
