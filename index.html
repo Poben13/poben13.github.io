@@ -17,7 +17,6 @@ body{
   height:100vh;
 }
 
-/* LEFT */
 .left{
   width:260px;
   background:#f1f1f1;
@@ -38,7 +37,6 @@ body{
   cursor:pointer;
 }
 
-/* CENTER */
 .center{
   flex:1;
   padding:30px;
@@ -77,7 +75,6 @@ body{
   cursor:pointer;
 }
 
-/* RIGHT */
 .right{
   width:260px;
   background:#f8f9fa;
@@ -102,29 +99,24 @@ body{
 
 <div class="wrapper">
 
-<!-- LEFT -->
 <div class="left">
 <h2>IKIZULIVE</h2>
 
 <h4>เพิ่มหลายโพสต์ในกล่องเดียว</h4>
-<p>วางหลายลิงก์ (1 บรรทัด = 1 ลิงก์)</p>
-<textarea id="linkInput" rows="8"></textarea>
+<textarea id="linkInput" rows="8" placeholder="1 บรรทัด = 1 ลิงก์"></textarea>
 
-<p>คำแปลรวม</p>
-<textarea id="translateInput" rows="5"></textarea>
+<textarea id="translateInput" rows="5" placeholder="คำแปลรวม"></textarea>
 
-<button onclick="addPosts()">เพิ่มโพสต์</button>
+<button id="addBtn">เพิ่มโพสต์</button>
 </div>
 
-<!-- CENTER -->
 <div class="center">
 <div id="posts"></div>
 </div>
 
-<!-- RIGHT -->
 <div class="right">
 <h3>Timeline</h3>
-<button class="timeline-btn" onclick="showAll()">แสดงทั้งหมด</button>
+<button class="timeline-btn" id="showAllBtn">แสดงทั้งหมด</button>
 <div id="timelineButtons"></div>
 </div>
 
@@ -133,6 +125,8 @@ body{
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+/* ================= CONFIG ================= */
 
 const firebaseConfig = {
   apiKey: "AIzaSyDlybmqJBVyC2B3Kh09KfbsO0XvH5Md2Vo",
@@ -145,120 +139,129 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const postsRef = collection(db,"posts");
+const postsRef = collection(db, "posts");
+
+/* ================= STATE ================= */
+
+let allPosts = [];
+let monthMap = {};
+
+/* ================= DOM ================= */
 
 const postsContainer = document.getElementById("posts");
 const timelineContainer = document.getElementById("timelineButtons");
+const addBtn = document.getElementById("addBtn");
+const showAllBtn = document.getElementById("showAllBtn");
+const linkInput = document.getElementById("linkInput");
+const translateInput = document.getElementById("translateInput");
 
-let allPosts=[];
-let monthMap={};
+/* ================= UTIL ================= */
 
-function getDateFromTweetId(postId){
+function extractTweetId(link){
+  const match = link.match(/status\/(\d+)/);
+  return match ? match[1] : null;
+}
+
+function getDateFromTweetId(id){
   const twitterEpoch = 1288834974657n;
-  const timestamp = (BigInt(postId) >> 22n) + twitterEpoch;
+  const timestamp = (BigInt(id) >> 22n) + twitterEpoch;
   return new Date(Number(timestamp));
 }
 
+function escapeHTML(str){
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+/* ================= RENDER ================= */
+
 function render(posts){
-  postsContainer.innerHTML="";
-  posts.forEach(p=>createPost(p));
+  postsContainer.innerHTML = "";
+  posts.forEach(createPostCard);
   if(window.twttr) window.twttr.widgets.load();
 }
 
-function createPost(post){
-  const div=document.createElement("div");
-  div.className="post-card";
+function createPostCard(post){
+  const card = document.createElement("div");
+  card.className = "post-card";
 
-  let tweetsHTML="";
   post.postIds.forEach(id=>{
-    tweetsHTML += `
-      <blockquote class="twitter-tweet">
-        <a href="https://twitter.com/i/status/${id}"></a>
-      </blockquote>
-    `;
+    const block = document.createElement("blockquote");
+    block.className = "twitter-tweet";
+    block.innerHTML = `<a href="https://twitter.com/i/status/${id}"></a>`;
+    card.appendChild(block);
   });
 
-  div.innerHTML=`
-    ${tweetsHTML}
+  const actions = document.createElement("div");
+  actions.className = "post-actions";
 
-    <div class="post-actions">
-      <button class="btn-dark" onclick="toggleTranslate('${post.id}')">ดูคำแปล</button>
-      <button class="btn-danger" onclick="deletePost('${post.id}')">ลบ</button>
-    </div>
+  const toggleBtn = document.createElement("button");
+  toggleBtn.className = "btn-dark";
+  toggleBtn.textContent = "ดูคำแปล";
+  toggleBtn.addEventListener("click", ()=>{
+    translateEl.style.display =
+      translateEl.style.display === "none" ? "block" : "none";
+  });
 
-    <p id="trans-${post.id}" style="display:none;margin-top:10px;">
-      ${post.content}
-    </p>
-  `;
+  const deleteBtn = document.createElement("button");
+  deleteBtn.className = "btn-danger";
+  deleteBtn.textContent = "ลบ";
+  deleteBtn.addEventListener("click", async ()=>{
+    await deleteDoc(doc(db, "posts", post.id));
+  });
 
-  postsContainer.appendChild(div);
+  actions.appendChild(toggleBtn);
+  actions.appendChild(deleteBtn);
+
+  const translateEl = document.createElement("p");
+  translateEl.style.display = "none";
+  translateEl.style.marginTop = "10px";
+  translateEl.innerHTML = escapeHTML(post.content);
+
+  card.appendChild(actions);
+  card.appendChild(translateEl);
+
+  postsContainer.appendChild(card);
 }
 
-window.toggleTranslate=(id)=>{
-  const el=document.getElementById("trans-"+id);
-  el.style.display = el.style.display==="none"?"block":"none";
-}
+/* ================= ADD POSTS ================= */
 
-window.deletePost=async(id)=>{
-  await deleteDoc(doc(db,"posts",id));
-}
+async function addPosts(){
+  const lines = linkInput.value.split("\n");
+  const translate = translateInput.value.trim();
 
-window.addPosts=async()=>{
-  const links=document.getElementById("linkInput").value.split("\n");
-  const translate=document.getElementById("translateInput").value;
+  const postIds = [];
+  let earliestDate = null;
 
-  let postIds=[];
-  let earliestDate=null;
+  for(const line of lines){
+    const id = extractTweetId(line.trim());
+    if(!id) continue;
 
-  for(let link of links){
-    if(!link.trim()) continue;
-
-    const match = link.match(/status\/(\d+)/);
-    if(!match) continue;
-
-    const id=match[1];
     postIds.push(id);
 
-    const date=getDateFromTweetId(id);
+    const date = getDateFromTweetId(id);
     if(!earliestDate || date < earliestDate){
-      earliestDate=date;
+      earliestDate = date;
     }
   }
 
-  if(postIds.length===0) return;
+  if(postIds.length === 0) return;
 
   await addDoc(postsRef,{
-    postIds:postIds,
-    content:translate,
-    createdAt:Timestamp.fromDate(earliestDate)
+    postIds,
+    content: translate,
+    createdAt: Timestamp.fromDate(earliestDate)
   });
 
-  document.getElementById("linkInput").value="";
-  document.getElementById("translateInput").value="";
-};
+  linkInput.value = "";
+  translateInput.value = "";
+}
 
-window.showAll=()=>render(allPosts);
+/* ================= TIMELINE ================= */
 
-const q=query(postsRef,orderBy("createdAt","asc"));
-
-onSnapshot(q,(snapshot)=>{
-  allPosts=[];
-  monthMap={};
-  timelineContainer.innerHTML="";
-
-  snapshot.forEach(docSnap=>{
-    const data=docSnap.data();
-    const date=data.createdAt.toDate();
-    const month=date.getMonth()+1;
-    const year=date.getFullYear();
-    const key=`${month}-${year}`;
-
-    const post={id:docSnap.id,...data};
-    allPosts.push(post);
-
-    if(!monthMap[key]) monthMap[key]=[];
-    monthMap[key].push(post);
-  });
+function buildTimeline(){
+  timelineContainer.innerHTML = "";
 
   Object.keys(monthMap)
     .sort((a,b)=>{
@@ -267,16 +270,50 @@ onSnapshot(q,(snapshot)=>{
       return new Date(y1,m1-1)-new Date(y2,m2-1);
     })
     .forEach(key=>{
-      const [m,y]=key.split("-");
-      const btn=document.createElement("button");
-      btn.className="timeline-btn";
-      btn.innerText=`เดือนที่ ${m} ปี ${y}`;
-      btn.onclick=()=>render(monthMap[key]);
+      const [m,y] = key.split("-");
+      const btn = document.createElement("button");
+      btn.className = "timeline-btn";
+      btn.textContent = `เดือนที่ ${m} ปี ${y}`;
+      btn.addEventListener("click", ()=>{
+        render(monthMap[key]);
+      });
       timelineContainer.appendChild(btn);
     });
+}
 
+/* ================= FIRESTORE LISTENER ================= */
+
+const q = query(postsRef, orderBy("createdAt","asc"));
+
+onSnapshot(q,(snapshot)=>{
+  allPosts = [];
+  monthMap = {};
+
+  snapshot.forEach(docSnap=>{
+    const data = docSnap.data();
+    if(!data.createdAt) return;
+
+    const date = data.createdAt.toDate();
+    const month = date.getMonth()+1;
+    const year = date.getFullYear();
+    const key = `${month}-${year}`;
+
+    const post = { id: docSnap.id, ...data };
+    allPosts.push(post);
+
+    if(!monthMap[key]) monthMap[key] = [];
+    monthMap[key].push(post);
+  });
+
+  buildTimeline();
   render(allPosts);
 });
+
+/* ================= EVENTS ================= */
+
+addBtn.addEventListener("click", addPosts);
+showAllBtn.addEventListener("click", ()=> render(allPosts));
+
 </script>
 
 <script async src="https://platform.twitter.com/widgets.js"></script>
