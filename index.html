@@ -22,6 +22,7 @@ body {
   background: white;
   padding: 20px;
   border-right: 1px solid #ddd;
+  overflow-y: auto;
 }
 
 .sidebar h2 {
@@ -55,6 +56,7 @@ body {
   padding: 10px;
   margin-top: 10px;
   border-radius: 8px;
+  white-space: pre-wrap;
 }
 
 button {
@@ -65,6 +67,13 @@ button {
   color: white;
   cursor: pointer;
   border-radius: 5px;
+}
+
+input, textarea {
+  width: 100%;
+  padding: 6px;
+  margin-top: 5px;
+  box-sizing: border-box;
 }
 </style>
 </head>
@@ -80,35 +89,22 @@ button {
     <p>Translated</p>
     <p>Search</p>
     <p>Members</p>
+
+    <hr>
+
+    <h3>เพิ่มโพสต์</h3>
+
+    <label>ลิงก์โพสต์ X</label>
+    <input type="text" id="postUrl" placeholder="https://x.com/...">
+
+    <label>คำแปลของคุณ</label>
+    <textarea id="postTranslation" rows="5" placeholder="ใส่คำแปลตรงนี้"></textarea>
+
+    <button onclick="addPost()">เพิ่มโพสต์</button>
   </div>
 
   <!-- กลาง -->
-  <div class="feed">
-
-    <div class="post">
-      <!-- วาง embed X ตรงนี้ -->
-     <blockquote class="twitter-tweet">
-  <a href="https://twitter.com/polka_lion/status/1900531608777904251"></a>
-</blockquote>
-
-
-      <button onclick="toggle(this)">ดูคำแปล</button>
-
-      <div class="translation">
-        Does this mean
-
-starting this spring, I won't have anywhere to go?
-
-No way, that's a lie...
-
-What should I do?
-
-Ahh
-
-This isn't a dream, right?
-      </div>
-    </div>
-
+  <div class="feed" id="feed">
   </div>
 
   <!-- ขวา -->
@@ -135,6 +131,79 @@ function toggle(button) {
     button.innerText = "ดูคำแปล";
   }
 }
+
+function addPost() {
+  const urlInput = document.getElementById("postUrl");
+  const translationInput = document.getElementById("postTranslation");
+
+  let url = urlInput.value.trim();
+  const translation = translationInput.value.trim();
+
+  if (!url) {
+    alert("กรุณาใส่ลิงก์โพสต์");
+    return;
+  }
+
+  // แปลง x.com เป็น twitter.com
+  url = url.replace("x.com", "twitter.com");
+  url = url.split("?")[0];
+
+  createPostElement(url, translation, true);
+
+  savePost(url, translation);
+
+  urlInput.value = "";
+  translationInput.value = "";
+}
+
+function createPostElement(url, translation, prepend = false) {
+  const feed = document.getElementById("feed");
+
+  const postDiv = document.createElement("div");
+  postDiv.className = "post";
+
+  postDiv.innerHTML = `
+    <blockquote class="twitter-tweet">
+      <a href="${url}"></a>
+    </blockquote>
+
+    <button onclick="toggle(this)">ดูคำแปล</button>
+
+    <div class="translation">
+      ${translation}
+    </div>
+  `;
+
+  if (prepend) {
+    feed.prepend(postDiv);
+  } else {
+    feed.appendChild(postDiv);
+  }
+
+  if (window.twttr) {
+    window.twttr.widgets.load(postDiv);
+  }
+}
+
+function savePost(url, translation) {
+  let posts = JSON.parse(localStorage.getItem("posts")) || [];
+  posts.unshift({ url, translation });
+  localStorage.setItem("posts", JSON.stringify(posts));
+}
+
+function loadPosts() {
+  let posts = JSON.parse(localStorage.getItem("posts")) || [];
+
+  posts.forEach(post => {
+    createPostElement(post.url, post.translation, false);
+  });
+
+  if (window.twttr) {
+    window.twttr.widgets.load();
+  }
+}
+
+document.addEventListener("DOMContentLoaded", loadPosts);
 </script>
 
 </body>
