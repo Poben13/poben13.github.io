@@ -52,3 +52,30 @@ button {
 <div class="post">
   <div class="original">
     Thank you everyone for your support!
+  </div>
+  <div class="translation" style="display:none;">
+    ขอบคุณทุกคนสำหรับการสนับสนุน!
+  </div>
+  <button onclick="toggle(this)">ดูคำแปล</button>
+</div>
+
+<script>
+function toggle(button) {
+  const post = button.parentElement;
+  const original = post.querySelector(".original");
+  const translation = post.querySelector(".translation");
+
+  if (original.style.display !== "none") {
+    original.style.display = "none";
+    translation.style.display = "block";
+    button.innerText = "ดูต้นฉบับ";
+  } else {
+    original.style.display = "block";
+    translation.style.display = "none";
+    button.innerText = "ดูคำแปล";
+  }
+}
+</script>
+
+</body>
+</html>
