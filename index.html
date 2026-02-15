@@ -17,15 +17,13 @@ body{
   height:100vh;
 }
 
-/* LEFT PANEL */
+/* LEFT */
 .left{
   width:260px;
   background:#f1f1f1;
   padding:20px;
   border-right:1px solid #ccc;
 }
-
-.left h2{ margin-top:0; }
 
 .left textarea{
   width:100%;
@@ -52,6 +50,10 @@ body{
   padding:20px;
   border-radius:14px;
   margin-bottom:30px;
+}
+
+.post-card blockquote{
+  margin-bottom:20px;
 }
 
 .post-actions{
@@ -104,11 +106,11 @@ body{
 <div class="left">
 <h2>IKIZULIVE</h2>
 
-<h4>เพิ่มหลายโพสต์</h4>
-<p>1 บรรทัด = 1 ลิงก์</p>
+<h4>เพิ่มหลายโพสต์ในกล่องเดียว</h4>
+<p>วางหลายลิงก์ (1 บรรทัด = 1 ลิงก์)</p>
 <textarea id="linkInput" rows="8"></textarea>
 
-<p>คำแปล</p>
+<p>คำแปลรวม</p>
 <textarea id="translateInput" rows="5"></textarea>
 
 <button onclick="addPosts()">เพิ่มโพสต์</button>
@@ -148,17 +150,15 @@ const postsRef = collection(db,"posts");
 const postsContainer = document.getElementById("posts");
 const timelineContainer = document.getElementById("timelineButtons");
 
-let allPosts = [];
-let monthMap = {};
+let allPosts=[];
+let monthMap={};
 
-/* ===== แปลง Tweet ID เป็นวันที่อัตโนมัติ ===== */
 function getDateFromTweetId(postId){
   const twitterEpoch = 1288834974657n;
   const timestamp = (BigInt(postId) >> 22n) + twitterEpoch;
   return new Date(Number(timestamp));
 }
 
-/* ===== แสดงโพสต์ ===== */
 function render(posts){
   postsContainer.innerHTML="";
   posts.forEach(p=>createPost(p));
@@ -169,10 +169,17 @@ function createPost(post){
   const div=document.createElement("div");
   div.className="post-card";
 
+  let tweetsHTML="";
+  post.postIds.forEach(id=>{
+    tweetsHTML += `
+      <blockquote class="twitter-tweet">
+        <a href="https://twitter.com/i/status/${id}"></a>
+      </blockquote>
+    `;
+  });
+
   div.innerHTML=`
-    <blockquote class="twitter-tweet">
-      <a href="https://twitter.com/i/status/${post.postId}"></a>
-    </blockquote>
+    ${tweetsHTML}
 
     <div class="post-actions">
       <button class="btn-dark" onclick="toggleTranslate('${post.id}')">ดูคำแปล</button>
@@ -187,48 +194,49 @@ function createPost(post){
   postsContainer.appendChild(div);
 }
 
-/* ===== ปุ่มคำแปล ===== */
 window.toggleTranslate=(id)=>{
   const el=document.getElementById("trans-"+id);
   el.style.display = el.style.display==="none"?"block":"none";
 }
 
-/* ===== ลบโพสต์ ===== */
 window.deletePost=async(id)=>{
   await deleteDoc(doc(db,"posts",id));
 }
 
-/* ===== เพิ่มโพสต์ (เวอร์ชันเสถียร) ===== */
 window.addPosts=async()=>{
   const links=document.getElementById("linkInput").value.split("\n");
   const translate=document.getElementById("translateInput").value;
 
+  let postIds=[];
+  let earliestDate=null;
+
   for(let link of links){
     if(!link.trim()) continue;
 
-    try{
-      const match = link.match(/status\/(\d+)/);
-      if(!match) continue;
+    const match = link.match(/status\/(\d+)/);
+    if(!match) continue;
 
-      const postId = match[1];
-      const autoDate = getDateFromTweetId(postId);
+    const id=match[1];
+    postIds.push(id);
 
-      await addDoc(postsRef,{
-        postId:postId,
-        content:translate,
-        createdAt:Timestamp.fromDate(autoDate)
-      });
-
-    }catch(err){
-      console.error("เพิ่มโพสต์ไม่สำเร็จ:", link, err);
+    const date=getDateFromTweetId(id);
+    if(!earliestDate || date < earliestDate){
+      earliestDate=date;
     }
   }
 
+  if(postIds.length===0) return;
+
+  await addDoc(postsRef,{
+    postIds:postIds,
+    content:translate,
+    createdAt:Timestamp.fromDate(earliestDate)
+  });
+
   document.getElementById("linkInput").value="";
   document.getElementById("translateInput").value="";
-}
+};
 
-/* ===== Timeline ===== */
 window.showAll=()=>render(allPosts);
 
 const q=query(postsRef,orderBy("createdAt","asc"));
@@ -240,8 +248,6 @@ onSnapshot(q,(snapshot)=>{
 
   snapshot.forEach(docSnap=>{
     const data=docSnap.data();
-    if(!data.createdAt) return;
-
     const date=data.createdAt.toDate();
     const month=date.getMonth()+1;
     const year=date.getFullYear();
