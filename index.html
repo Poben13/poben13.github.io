@@ -1,322 +1,267 @@
 <!DOCTYPE html>
-<html lang="th">
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>IKIZULIVE</title>
+<title>My Timeline</title>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"></script>
+<script async src="https://platform.twitter.com/widgets.js"></script>
 
 <style>
 body{
   margin:0;
-  font-family:Arial, Helvetica, sans-serif;
-  background:#e9ecef;
-}
-
-.wrapper{
+  font-family:Arial;
   display:flex;
-  height:100vh;
+  background:#f5f5f5;
 }
 
-.left{
-  width:260px;
-  background:#f1f1f1;
+.main{
+  flex:3;
   padding:20px;
-  border-right:1px solid #ccc;
 }
 
-.left textarea{
-  width:100%;
-  margin-bottom:10px;
-}
-
-.left button{
-  background:black;
-  color:white;
-  border:none;
-  padding:8px 12px;
-  cursor:pointer;
-}
-
-.center{
+.sidebar{
   flex:1;
-  padding:30px;
+  background:#fff;
+  border-left:1px solid #ddd;
+  padding:20px;
+  height:100vh;
   overflow-y:auto;
 }
 
-.post-card{
-  background:white;
-  padding:20px;
-  border-radius:14px;
-  margin-bottom:30px;
+textarea{
+  width:100%;
+  height:100px;
+  margin-bottom:10px;
 }
 
-.post-card blockquote{
+button{
+  padding:8px 12px;
+  margin:5px 0;
+  cursor:pointer;
+}
+
+.post-group{
+  background:#fff;
+  padding:15px;
   margin-bottom:20px;
+  border-radius:10px;
+  box-shadow:0 2px 5px rgba(0,0,0,0.05);
 }
 
-.post-actions{
-  margin-top:15px;
+.translation{
+  margin-top:10px;
+  font-style:italic;
+  color:#333;
 }
 
-.btn-dark{
-  background:black;
-  color:white;
-  border:none;
-  padding:6px 12px;
-  margin-right:5px;
-  cursor:pointer;
-}
-
-.btn-danger{
-  background:#dc3545;
-  color:white;
-  border:none;
-  padding:6px 12px;
-  cursor:pointer;
-}
-
-.right{
-  width:260px;
-  background:#f8f9fa;
-  padding:20px;
-  border-left:1px solid #ccc;
-}
-
-.timeline-btn{
+.timeline-button{
   display:block;
   width:100%;
   margin-bottom:10px;
-  background:#333;
-  color:white;
-  border:none;
   padding:10px;
+  background:#f0f0f0;
+  border:none;
+  text-align:left;
   cursor:pointer;
+}
+
+.timeline-button:hover{
+  background:#ddd;
 }
 </style>
 </head>
 
 <body>
 
-<div class="wrapper">
+<div class="main">
+  <h2>เพิ่มโพสต์</h2>
 
-<div class="left">
-<h2>IKIZULIVE</h2>
+  <textarea id="tweetLinks" placeholder="วางลิงก์หลายโพสต์ (1 บรรทัด ต่อ 1 ลิงก์)"></textarea>
+  <textarea id="translation" placeholder="คำแปล"></textarea>
+  <button onclick="addPostGroup()">เพิ่มโพสต์</button>
 
-<h4>เพิ่มหลายโพสต์ในกล่องเดียว</h4>
-<textarea id="linkInput" rows="8" placeholder="1 บรรทัด = 1 ลิงก์"></textarea>
-
-<textarea id="translateInput" rows="5" placeholder="คำแปลรวม"></textarea>
-
-<button id="addBtn">เพิ่มโพสต์</button>
+  <hr>
+  <div id="posts"></div>
 </div>
 
-<div class="center">
-<div id="posts"></div>
-</div>
-
-<div class="right">
-<h3>Timeline</h3>
-<button class="timeline-btn" id="showAllBtn">แสดงทั้งหมด</button>
-<div id="timelineButtons"></div>
-</div>
-
+<div class="sidebar">
+  <h3>Timeline</h3>
+  <div id="timeline"></div>
 </div>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-/* ================= CONFIG ================= */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDlybmqJBVyC2B3Kh09KfbsO0XvH5Md2Vo",
-  authDomain: "ikizuliveth.firebaseapp.com",
-  projectId: "ikizuliveth",
-  storageBucket: "ikizuliveth.firebasestorage.app",
-  messagingSenderId: "435466293836",
-  appId: "1:435466293836:web:15c46e9be1b484c91b9ae9"
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "XXXX",
+  appId: "XXXX"
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const postsRef = collection(db, "posts");
-
-/* ================= STATE ================= */
-
-let allPosts = [];
-let monthMap = {};
-
-/* ================= DOM ================= */
-
-const postsContainer = document.getElementById("posts");
-const timelineContainer = document.getElementById("timelineButtons");
-const addBtn = document.getElementById("addBtn");
-const showAllBtn = document.getElementById("showAllBtn");
-const linkInput = document.getElementById("linkInput");
-const translateInput = document.getElementById("translateInput");
-
-/* ================= UTIL ================= */
+const postsRef = collection(db,"posts");
 
 function extractTweetId(link){
-  const match = link.match(/status\/(\d+)/);
+  const match = link.match(/(\d{10,})/);
   return match ? match[1] : null;
 }
 
-function getDateFromTweetId(id){
-  const twitterEpoch = 1288834974657n;
-  const timestamp = (BigInt(id) >> 22n) + twitterEpoch;
+function getTweetDate(tweetId){
+  const timestamp = (BigInt(tweetId) >> 22n) + 1288834974657n;
   return new Date(Number(timestamp));
 }
 
-function escapeHTML(str){
-  const div = document.createElement("div");
-  div.textContent = str;
-  return div.innerHTML;
-}
+async function addPostGroup(){
+  const rawLinks = document.getElementById("tweetLinks").value.trim();
+  const translation = document.getElementById("translation").value.trim();
 
-/* ================= RENDER ================= */
+  if(!rawLinks) return alert("ใส่ลิงก์ก่อน");
 
-function render(posts){
-  postsContainer.innerHTML = "";
-  posts.forEach(createPostCard);
-  if(window.twttr) window.twttr.widgets.load();
-}
-
-function createPostCard(post){
-  const card = document.createElement("div");
-  card.className = "post-card";
-
-  post.postIds.forEach(id=>{
-    const block = document.createElement("blockquote");
-    block.className = "twitter-tweet";
-    block.innerHTML = `<a href="https://twitter.com/i/status/${id}"></a>`;
-    card.appendChild(block);
-  });
-
-  const actions = document.createElement("div");
-  actions.className = "post-actions";
-
-  const toggleBtn = document.createElement("button");
-  toggleBtn.className = "btn-dark";
-  toggleBtn.textContent = "ดูคำแปล";
-  toggleBtn.addEventListener("click", ()=>{
-    translateEl.style.display =
-      translateEl.style.display === "none" ? "block" : "none";
-  });
-
-  const deleteBtn = document.createElement("button");
-  deleteBtn.className = "btn-danger";
-  deleteBtn.textContent = "ลบ";
-  deleteBtn.addEventListener("click", async ()=>{
-    await deleteDoc(doc(db, "posts", post.id));
-  });
-
-  actions.appendChild(toggleBtn);
-  actions.appendChild(deleteBtn);
-
-  const translateEl = document.createElement("p");
-  translateEl.style.display = "none";
-  translateEl.style.marginTop = "10px";
-  translateEl.innerHTML = escapeHTML(post.content);
-
-  card.appendChild(actions);
-  card.appendChild(translateEl);
-
-  postsContainer.appendChild(card);
-}
-
-/* ================= ADD POSTS ================= */
-
-async function addPosts(){
-  const lines = linkInput.value.split("\n");
-  const translate = translateInput.value.trim();
-
+  const links = rawLinks.split("\n");
   const postIds = [];
   let earliestDate = null;
 
-  for(const line of lines){
-    const id = extractTweetId(line.trim());
-    if(!id) continue;
-
-    postIds.push(id);
-
-    const date = getDateFromTweetId(id);
-    if(!earliestDate || date < earliestDate){
-      earliestDate = date;
+  links.forEach(link=>{
+    const id = extractTweetId(link);
+    if(id){
+      postIds.push(id);
+      const date = getTweetDate(id);
+      if(!earliestDate || date < earliestDate){
+        earliestDate = date;
+      }
     }
-  }
+  });
 
-  if(postIds.length === 0) return;
+  if(postIds.length === 0) return alert("ไม่พบ Tweet ID");
 
   await addDoc(postsRef,{
     postIds,
-    content: translate,
-    createdAt: Timestamp.fromDate(earliestDate)
+    translation,
+    postDate: earliestDate
   });
 
-  linkInput.value = "";
-  translateInput.value = "";
+  document.getElementById("tweetLinks").value = "";
+  document.getElementById("translation").value = "";
 }
 
-/* ================= TIMELINE ================= */
-
-function buildTimeline(){
-  timelineContainer.innerHTML = "";
-
-  Object.keys(monthMap)
-    .sort((a,b)=>{
-      const [m1,y1]=a.split("-");
-      const [m2,y2]=b.split("-");
-      return new Date(y1,m1-1)-new Date(y2,m2-1);
-    })
-    .forEach(key=>{
-      const [m,y] = key.split("-");
-      const btn = document.createElement("button");
-      btn.className = "timeline-btn";
-      btn.textContent = `เดือนที่ ${m} ปี ${y}`;
-      btn.addEventListener("click", ()=>{
-        render(monthMap[key]);
-      });
-      timelineContainer.appendChild(btn);
-    });
+function deletePost(id){
+  deleteDoc(doc(db,"posts",id));
 }
 
-/* ================= FIRESTORE LISTENER ================= */
+function renderPosts(snapshot){
+  const postsDiv = document.getElementById("posts");
+  const timelineDiv = document.getElementById("timeline");
 
-const q = query(postsRef, orderBy("createdAt","asc"));
+  postsDiv.innerHTML = "";
+  timelineDiv.innerHTML = "";
 
-onSnapshot(q,(snapshot)=>{
-  allPosts = [];
-  monthMap = {};
+  const monthMap = {};
 
   snapshot.forEach(docSnap=>{
     const data = docSnap.data();
-    if(!data.createdAt) return;
+    if(!data.postIds || !data.postDate) return;
 
-    const date = data.createdAt.toDate();
-    const month = date.getMonth()+1;
-    const year = date.getFullYear();
+    const postDate = data.postDate.toDate();
+    const month = postDate.getMonth()+1;
+    const year = postDate.getFullYear();
     const key = `${month}-${year}`;
 
-    const post = { id: docSnap.id, ...data };
-    allPosts.push(post);
+    if(!monthMap[key]) monthMap[key]=[];
 
-    if(!monthMap[key]) monthMap[key] = [];
-    monthMap[key].push(post);
+    monthMap[key].push({
+      id:docSnap.id,
+      ...data
+    });
   });
 
-  buildTimeline();
-  render(allPosts);
+  // render posts
+  snapshot.forEach(docSnap=>{
+    const data = docSnap.data();
+    if(!data.postIds) return;
+
+    const div = document.createElement("div");
+    div.className="post-group";
+
+    data.postIds.forEach(id=>{
+      const block = document.createElement("blockquote");
+      block.className="twitter-tweet";
+      block.innerHTML=`<a href="https://twitter.com/x/status/${id}"></a>`;
+      div.appendChild(block);
+    });
+
+    if(data.translation){
+      const t = document.createElement("div");
+      t.className="translation";
+      t.innerText=data.translation;
+      div.appendChild(t);
+    }
+
+    const del = document.createElement("button");
+    del.innerText="ลบโพสต์";
+    del.onclick=()=>deletePost(docSnap.id);
+    div.appendChild(del);
+
+    postsDiv.appendChild(div);
+  });
+
+  if(window.twttr) window.twttr.widgets.load();
+
+  // render timeline
+  Object.keys(monthMap).forEach(key=>{
+    const [month,year]=key.split("-");
+    const btn = document.createElement("button");
+    btn.className="timeline-button";
+    btn.innerText=`เดือนที่ ${month} ปี ${year}`;
+    btn.onclick=()=>{
+      postsDiv.innerHTML="";
+      monthMap[key].forEach(post=>{
+        const div = document.createElement("div");
+        div.className="post-group";
+
+        post.postIds.forEach(id=>{
+          const block = document.createElement("blockquote");
+          block.className="twitter-tweet";
+          block.innerHTML=`<a href="https://twitter.com/x/status/${id}"></a>`;
+          div.appendChild(block);
+        });
+
+        if(post.translation){
+          const t = document.createElement("div");
+          t.className="translation";
+          t.innerText=post.translation;
+          div.appendChild(t);
+        }
+
+        const del = document.createElement("button");
+        del.innerText="ลบโพสต์";
+        del.onclick=()=>deletePost(post.id);
+        div.appendChild(del);
+
+        postsDiv.appendChild(div);
+      });
+
+      if(window.twttr) window.twttr.widgets.load();
+    };
+
+    timelineDiv.appendChild(btn);
+  });
+}
+
+const q = query(postsRef, orderBy("postDate","asc"));
+
+onSnapshot(q,(snapshot)=>{
+  renderPosts(snapshot);
 });
 
-/* ================= EVENTS ================= */
-
-addBtn.addEventListener("click", addPosts);
-showAllBtn.addEventListener("click", ()=> render(allPosts));
-
 </script>
-
-<script async src="https://platform.twitter.com/widgets.js"></script>
 
 </body>
 </html>
