@@ -13,7 +13,7 @@ body {
 
 .container {
   display: grid;
-  grid-template-columns: 250px 1fr 250px;
+  grid-template-columns: 250px 1fr 300px;
   height: 100vh;
 }
 
@@ -43,6 +43,10 @@ body {
   border-radius: 12px;
 }
 
+.group-actions {
+  margin-top: 10px;
+}
+
 .translation {
   display: none;
   background: #f0f0f0;
@@ -53,7 +57,7 @@ body {
 }
 
 button {
-  margin-top: 10px;
+  margin-top: 8px;
   padding: 6px 10px;
   border: none;
   background: black;
@@ -67,18 +71,18 @@ button {
   background: #d11a2a;
 }
 
+.timeline button {
+  display: block;
+  width: 100%;
+  margin-bottom: 8px;
+  background: #444;
+}
+
 textarea {
   width: 100%;
   padding: 6px;
   margin-top: 5px;
   box-sizing: border-box;
-}
-
-.month-btn {
-  display: block;
-  width: 100%;
-  margin-bottom: 8px;
-  background: #333;
 }
 </style>
 </head>
@@ -87,28 +91,31 @@ textarea {
 
 <div class="container">
 
-<!-- ซ้าย -->
-<div class="sidebar">
-  <h3>เพิ่มหลายโพสต์</h3>
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <h2>IKIZULIVE</h2>
+    <hr>
 
-  <label>ลิงก์ (1 บรรทัด = 1 ลิงก์)</label>
-  <textarea id="postUrls" rows="5"></textarea>
+    <h3>เพิ่มหลายโพสต์</h3>
 
-  <label>คำแปล</label>
-  <textarea id="postTranslation" rows="4"></textarea>
+    <label>ลิงก์ (1 บรรทัด = 1 โพสต์)</label>
+    <textarea id="postUrls" rows="5"></textarea>
 
-  <button onclick="addPostGroup()">เพิ่มโพสต์ทั้งหมด</button>
-</div>
+    <label>คำแปล</label>
+    <textarea id="postTranslation" rows="5"></textarea>
 
-<!-- กลาง -->
-<div class="feed"></div>
+    <button onclick="addPostGroup()">เพิ่มโพสต์ทั้งหมด</button>
+  </div>
 
-<!-- ขวา -->
-<div class="timeline">
-  <h3>เลือกเดือน</h3>
-  <div id="monthList"></div>
-  <button onclick="showAll()">แสดงทั้งหมด</button>
-</div>
+  <!-- Feed -->
+  <div class="feed"></div>
+
+  <!-- Timeline -->
+  <div class="timeline">
+    <h3>Timeline</h3>
+    <button onclick="showAll()">แสดงทั้งหมด</button>
+    <div id="timelineButtons"></div>
+  </div>
 
 </div>
 
@@ -119,45 +126,44 @@ textarea {
 function toggle(button) {
   const translation = button.parentElement.parentElement.querySelector(".translation");
 
-  if (!translation.style.display || translation.style.display === "none") {
-    translation.style.display = "block";
-    button.innerText = "ซ่อนคำแปล";
-  } else {
-    translation.style.display = "none";
-    button.innerText = "ดูคำแปล";
-  }
+  translation.style.display =
+    translation.style.display === "block" ? "none" : "block";
+
+  button.innerText =
+    translation.style.display === "block" ? "ซ่อนคำแปล" : "ดูคำแปล";
 }
 
 function addPostGroup() {
   const urlsText = document.getElementById("postUrls").value.trim();
   const translation = document.getElementById("postTranslation").value.trim();
 
-  if (!urlsText) {
-    alert("กรุณาใส่ลิงก์");
-    return;
-  }
+  if (!urlsText) return alert("กรุณาใส่ลิงก์");
 
   const urls = urlsText.split("\n")
-    .map(url => url.trim())
-    .filter(url => url !== "")
-    .map(url => url.replace("x.com", "twitter.com").split("?")[0]);
+    .map(u => u.trim())
+    .filter(u => u !== "")
+    .map(u => u.replace("x.com","twitter.com").split("?")[0]);
+
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  const year = now.getFullYear();
 
   const id = Date.now();
-  const createdAt = new Date().toISOString();
 
-  createPostGroup(id, urls, translation, createdAt, true);
+  createPostGroup(id, urls, translation, month, year, true);
 
   document.getElementById("postUrls").value = "";
   document.getElementById("postTranslation").value = "";
 }
 
-function createPostGroup(id, urls, translation, createdAt, save=false) {
+function createPostGroup(id, urls, translation, month, year, save=false) {
   const feed = document.querySelector(".feed");
 
   const groupDiv = document.createElement("div");
   groupDiv.className = "post-group";
-  groupDiv.setAttribute("data-id", id);
-  groupDiv.setAttribute("data-date", createdAt);
+  groupDiv.dataset.id = id;
+  groupDiv.dataset.month = month;
+  groupDiv.dataset.year = year;
 
   let tweetsHTML = "";
 
@@ -170,89 +176,92 @@ function createPostGroup(id, urls, translation, createdAt, save=false) {
   });
 
   groupDiv.innerHTML = `
+    <small>เดือนที่ ${month} ปี ${year}</small>
     ${tweetsHTML}
-    <div>
+    <div class="group-actions">
       <button onclick="toggle(this)">ดูคำแปล</button>
       <button class="delete-btn" onclick="deleteGroup(${id})">ลบทั้งชุด</button>
     </div>
     <div class="translation">${translation}</div>
   `;
 
-  feed.appendChild(groupDiv); // 🔥 append แทน prepend (เก่า → ใหม่)
+  feed.appendChild(groupDiv); // 👈 เรียงเก่าสุดก่อน
 
   if (window.twttr) {
     window.twttr.widgets.load(groupDiv);
   }
 
   if (save) {
-    saveGroup(id, urls, translation, createdAt);
-    renderMonths();
+    saveGroup(id, urls, translation, month, year);
+    updateTimeline();
   }
 }
 
 function deleteGroup(id) {
   if (!confirm("ลบชุดนี้?")) return;
 
-  document.querySelector(`[data-id='${id}']`).remove();
+  document.querySelector(`[data-id='${id}']`)?.remove();
 
   let groups = JSON.parse(localStorage.getItem("groups")) || [];
   groups = groups.filter(g => g.id !== id);
   localStorage.setItem("groups", JSON.stringify(groups));
 
-  renderMonths();
+  updateTimeline();
 }
 
-function saveGroup(id, urls, translation, createdAt) {
+function saveGroup(id, urls, translation, month, year) {
   let groups = JSON.parse(localStorage.getItem("groups")) || [];
-  groups.push({ id, urls, translation, createdAt }); // 🔥 push เพื่อเรียงเก่า → ใหม่
+  groups.push({ id, urls, translation, month, year }); // 👈 push = เก่าสุดก่อน
   localStorage.setItem("groups", JSON.stringify(groups));
 }
 
 function loadGroups() {
   let groups = JSON.parse(localStorage.getItem("groups")) || [];
 
-  groups.forEach(group => {
-    createPostGroup(group.id, group.urls, group.translation, group.createdAt, false);
+  groups.forEach(g => {
+    createPostGroup(g.id, g.urls, g.translation, g.month, g.year, false);
   });
 
-  renderMonths();
+  updateTimeline();
 }
 
-function renderMonths() {
-  const monthList = document.getElementById("monthList");
-  monthList.innerHTML = "";
+function updateTimeline() {
+  const container = document.getElementById("timelineButtons");
+  container.innerHTML = "";
 
   let groups = JSON.parse(localStorage.getItem("groups")) || [];
-  const months = {};
 
-  groups.forEach(g => {
-    const date = new Date(g.createdAt);
-    const key = `${date.getFullYear()}-${date.getMonth()+1}`;
-    months[key] = true;
+  const uniqueMonths = [...new Set(
+    groups.map(g => `${g.month}-${g.year}`)
+  )];
+
+  uniqueMonths.sort((a,b)=>{
+    const [m1,y1] = a.split("-").map(Number);
+    const [m2,y2] = b.split("-").map(Number);
+    return y1 !== y2 ? y1 - y2 : m1 - m2;
   });
 
-  Object.keys(months).sort().forEach(key => {
+  uniqueMonths.forEach(key=>{
+    const [month, year] = key.split("-");
     const btn = document.createElement("button");
-    btn.className = "month-btn";
-    btn.innerText = key;
-    btn.onclick = () => filterByMonth(key);
-    monthList.appendChild(btn);
+    btn.innerText = `เดือนที่ ${month} ปี ${year}`;
+    btn.onclick = ()=>filterByMonth(month, year);
+    container.appendChild(btn);
   });
 }
 
-function filterByMonth(monthKey) {
-  const groups = document.querySelectorAll(".post-group");
-
-  groups.forEach(group => {
-    const date = new Date(group.dataset.date);
-    const key = `${date.getFullYear()}-${date.getMonth()+1}`;
-
-    group.style.display = (key === monthKey) ? "block" : "none";
+function filterByMonth(month, year) {
+  document.querySelectorAll(".post-group").forEach(group=>{
+    if(group.dataset.month === month && group.dataset.year === year){
+      group.style.display = "block";
+    } else {
+      group.style.display = "none";
+    }
   });
 }
 
 function showAll() {
-  document.querySelectorAll(".post-group").forEach(group => {
+  document.querySelectorAll(".post-group").forEach(group=>{
     group.style.display = "block";
   });
 }
