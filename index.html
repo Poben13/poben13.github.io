@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>BlueBird Social</title>
+  <style>
+    body {
+      font-family: Arial;
+      background: #e6f2ff;
+      margin: 0;
+    }
+    header {
+      background: #1da1f2;
+      color: white;
+      padding: 15px;
+      text-align: center;
+    }
+    main {
+      max-width: 600px;
+      margin: 20px auto;
+    }
+    textarea {
+      width: 100%;
+      height: 80px;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+    button {
+      margin-top: 10px;
+      padding: 8px 15px;
+      background: #1da1f2;
+      border: none;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .post {
+      background: white;
+      padding: 15px;
+      border-radius: 10px;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🐦 BlueBird Social</h1>
+</header>
+
+<main>
+  <textarea id="postInput" placeholder="กำลังคิดอะไรอยู่..."></textarea>
+  <button onclick="addPost()">โพสต์</button>
+  <div id="feed"></div>
+</main>
+
+<script>
+function addPost() {
+  const input = document.getElementById("postInput");
+  const feed = document.getElementById("feed");
+
+  if (input.value.trim() === "") return;
+
+  const post = document.createElement("div");
+  post.className = "post";
+  post.innerText = input.value;
+
+  feed.prepend(post);
+  input.value = "";
+}
+</script>
+
+</body>
+</html>
