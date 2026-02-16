@@ -9,8 +9,11 @@
   <script>
     tailwind.config = {
       darkMode: 'class',
-      content: ["*"],
-      theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } }
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+        }
+      }
     }
   </script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -25,16 +28,14 @@
 
 <div class="flex flex-col lg:flex-row min-h-screen">
 
-  <!-- LEFT SIDEBAR -->
+  <!-- LEFT SIDEBAR (Control) - อยู่บนสุดเสมอ -->
   <aside class="w-full lg:w-72 bg-white dark:bg-gray-900 border-b lg:border-r border-gray-200 dark:border-gray-800 flex-shrink-0 overflow-y-auto">
     <div class="p-5 sm:p-6">
-
       <div class="flex items-center gap-3 mb-8">
-        <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-2xl">IK</div>
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-2xl shadow-md">IK</div>
         <h1 class="text-2xl font-bold tracking-tight">IKIZULIVE</h1>
       </div>
 
-      <!-- Admin -->
       <div class="mb-8">
         <label class="block text-sm font-medium mb-2">รหัสแอดมิน</label>
         <input type="password" id="adminCode" placeholder="กรอกรหัสเพื่อเปิดสิทธิ์"
@@ -48,7 +49,6 @@
 
       <hr class="my-8 border-gray-200 dark:border-gray-800">
 
-      <!-- เพิ่มโพสต์ -->
       <div>
         <h3 class="text-lg font-semibold mb-4">เพิ่มหลายโพสต์</h3>
         <p class="text-sm text-gray-500 mb-2">วางลิงก์ทีละบรรทัด</p>
@@ -68,26 +68,31 @@
     </div>
   </aside>
 
-  <!-- MAIN CONTENT -->
-  <main class="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
-    <header class="mb-8">
-      <h2 class="text-3xl font-bold">Timeline โพสต์</h2>
-      <p class="text-gray-500">จัดการ Twitter embeds และคำแปล</p>
-    </header>
-    <div id="posts" class="space-y-8"></div>
-  </main>
+  <!-- MAIN + TIMELINE WRAPPER (บนมือถือจะเรียงแนวตั้ง) -->
+  <div class="flex-1 flex flex-col">
 
-  <!-- RIGHT SIDEBAR - Timeline -->
-  <aside class="w-full lg:w-72 bg-white dark:bg-gray-900 border-t lg:border-l border-gray-200 dark:border-gray-800 flex-shrink-0 overflow-y-auto hidden lg:block">
-    <div class="p-6">
-      <h3 class="text-xl font-semibold mb-6">ตัวกรองเวลา</h3>
-      <button onclick="showAll()" 
-        class="w-full text-left px-5 py-3 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition mb-2 font-medium">
-        แสดงทั้งหมด
-      </button>
-      <div id="timelineButtons" class="space-y-1"></div>
-    </div>
-  </aside>
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+      <header class="mb-8">
+        <h2 class="text-3xl font-bold">Timeline โพสต์</h2>
+        <p class="text-gray-500">จัดการ Twitter embeds และคำแปล</p>
+      </header>
+      <div id="posts" class="space-y-8"></div>
+    </main>
+
+    <!-- TIMELINE SIDEBAR - แสดงบนมือถือด้วย (ใต้ main) และด้านขวาบน lg+ -->
+    <aside class="w-full lg:w-72 bg-white dark:bg-gray-900 border-t lg:border-l border-gray-200 dark:border-gray-800 flex-shrink-0 overflow-y-auto lg:border-t-0">
+      <div class="p-5 sm:p-6">
+        <h3 class="text-xl font-semibold mb-6">ตัวกรองเวลา</h3>
+        <button onclick="showAll()" 
+          class="w-full text-left px-5 py-3.5 rounded-2xl hover:bg-gray-100 dark:hover:bg-gray-800 transition mb-2 font-medium">
+          แสดงทั้งหมด
+        </button>
+        <div id="timelineButtons" class="space-y-1"></div>
+      </div>
+    </aside>
+
+  </div>
 
 </div>
 
@@ -122,7 +127,6 @@ window.checkAdmin = () => {
   updateAdminUI();
 };
 
-/* Firebase */
 const firebaseConfig = {
   apiKey: "YOUR_API_KEY",
   authDomain: "ikizuliveth.firebaseapp.com",
@@ -185,7 +189,7 @@ window.toggleTranslate = id => document.getElementById("trans-"+id).classList.to
 
 window.deletePost = async id => {
   if (!isAdmin) return alert("ต้องเข้าสู่ระบบแอดมินก่อน");
-  if (!confirm("ยืนยันลบโพสต์นี้?")) return;
+  if (!confirm("ยืนยันลบ?")) return;
   await deleteDoc(doc(db, "posts", id));
 };
 
@@ -209,7 +213,7 @@ window.addPosts = async () => {
   
   document.getElementById("linkInput").value = "";
   document.getElementById("translateInput").value = "";
-  alert("เพิ่มโพสต์สำเร็จ");
+  alert("เพิ่มสำเร็จ");
 };
 
 window.showAll = () => render(allPosts);
@@ -231,7 +235,7 @@ onSnapshot(q, snapshot => {
     monthMap[key].push(post);
   });
 
-  // เรียงจากเก่าสุด → ใหม่สุด
+  // เรียงเก่าสุด → ใหม่สุด (บนลงล่าง)
   Object.keys(monthMap)
     .sort((a, b) => {
       const [mA, yA] = a.split("-").map(Number);
