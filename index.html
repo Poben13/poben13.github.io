@@ -12,6 +12,29 @@ body{
   background:#e9ecef;
 }
 
+/* MOBILE HEADER */
+.mobile-header{
+  display:none;
+  background:#111;
+  color:white;
+  padding:12px 15px;
+  align-items:center;
+  justify-content:space-between;
+}
+
+.logo-mobile{
+  font-weight:bold;
+  letter-spacing:2px;
+}
+
+.hamburger{
+  background:none;
+  border:none;
+  color:white;
+  font-size:22px;
+  cursor:pointer;
+}
+
 .wrapper{
   display:flex;
   height:100vh;
@@ -109,14 +132,36 @@ body{
 
 /* MOBILE */
 @media (max-width:900px){
+
+  .left{
+    display:none;
+  }
+
+  .mobile-header{
+    display:flex;
+  }
+
   .wrapper{
     flex-direction:column;
     height:auto;
   }
-  .left,.right{
-    width:100%;
-    border:none;
+
+  .right{
+    position:fixed;
+    top:0;
+    right:-100%;
+    width:75%;
+    height:100%;
+    background:#f8f9fa;
+    z-index:999;
+    transition:0.3s ease;
+    box-shadow:-2px 0 10px rgba(0,0,0,0.2);
   }
+
+  .right.active{
+    right:0;
+  }
+
   .center{
     padding:15px;
   }
@@ -125,6 +170,12 @@ body{
 </head>
 
 <body>
+
+<!-- MOBILE HEADER -->
+<div class="mobile-header">
+  <div class="logo-mobile">IKIZULIVE</div>
+  <button class="hamburger" onclick="toggleTimeline()">☰</button>
+</div>
 
 <div class="wrapper">
 
@@ -157,7 +208,7 @@ body{
 <!-- RIGHT -->
 <div class="right">
 <h3>Timeline</h3>
-<button class="timeline-btn" onclick="showAll()">แสดงทั้งหมด</button>
+<button class="timeline-btn" onclick="showAll(); closeTimeline()">แสดงทั้งหมด</button>
 <div id="timelineButtons"></div>
 </div>
 
@@ -184,6 +235,16 @@ window.checkAdmin = () => {
     status.style.color = "red";
   }
 };
+
+window.toggleTimeline = () => {
+  const panel = document.querySelector(".right");
+  panel.classList.toggle("active");
+}
+
+window.closeTimeline = () => {
+  const panel = document.querySelector(".right");
+  panel.classList.remove("active");
+}
 
 /* Firebase */
 const firebaseConfig = {
@@ -297,7 +358,10 @@ window.addPosts=async()=>{
   document.getElementById("translateInput").value="";
 }
 
-window.showAll=()=>render(allPosts);
+window.showAll=()=>{
+  render(allPosts);
+  closeTimeline();
+};
 
 const q=query(postsRef,orderBy("createdAt","asc"));
 
@@ -323,7 +387,10 @@ onSnapshot(q,snapshot=>{
     const btn=document.createElement("button");
     btn.className="timeline-btn";
     btn.innerText=`เดือนที่ ${m} ปี ${y}`;
-    btn.onclick=()=>render(monthMap[key]);
+    btn.onclick=()=>{
+      render(monthMap[key]);
+      closeTimeline();
+    };
     timelineContainer.appendChild(btn);
   });
 
