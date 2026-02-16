@@ -40,33 +40,12 @@ body{
   height:100vh;
 }
 
-/* LEFT PANEL */
+/* LEFT */
 .left{
   width:260px;
   background:#f1f1f1;
   padding:20px;
   border-right:1px solid #ccc;
-}
-
-.left textarea,
-.left input{
-  width:100%;
-  margin-bottom:10px;
-  padding:8px;
-}
-
-.left button{
-  width:100%;
-  background:black;
-  color:white;
-  border:none;
-  padding:10px;
-  cursor:pointer;
-}
-
-.admin-status{
-  font-size:14px;
-  margin-bottom:10px;
 }
 
 /* CENTER */
@@ -76,38 +55,13 @@ body{
   overflow-y:auto;
 }
 
+/* POST */
 .post-card{
   background:white;
   padding:20px;
   border-radius:14px;
   margin-bottom:30px;
   box-shadow:0 2px 8px rgba(0,0,0,0.05);
-}
-
-.post-actions{
-  margin-top:15px;
-}
-
-.btn-dark{
-  background:black;
-  color:white;
-  border:none;
-  padding:6px 12px;
-  margin-right:5px;
-  cursor:pointer;
-}
-
-.btn-danger{
-  background:#dc3545;
-  color:white;
-  border:none;
-  padding:6px 12px;
-  cursor:pointer;
-}
-
-.translation{
-  margin-top:10px;
-  white-space:pre-line;
 }
 
 /* RIGHT */
@@ -132,14 +86,8 @@ body{
 
 /* MOBILE */
 @media (max-width:900px){
-
-  .left{
-    display:none;
-  }
-
-  .mobile-header{
-    display:flex;
-  }
+  .left{ display:none; }
+  .mobile-header{ display:flex; }
 
   .wrapper{
     flex-direction:column;
@@ -155,23 +103,17 @@ body{
     background:#f8f9fa;
     z-index:999;
     transition:0.3s ease;
-    box-shadow:-2px 0 10px rgba(0,0,0,0.2);
   }
 
-  .right.active{
-    right:0;
-  }
+  .right.active{ right:0; }
 
-  .center{
-    padding:15px;
-  }
+  .center{ padding:15px; }
 }
 </style>
 </head>
 
 <body>
 
-<!-- MOBILE HEADER -->
 <div class="mobile-header">
   <div class="logo-mobile">IKIZULIVE</div>
   <button class="hamburger" onclick="toggleTimeline()">☰</button>
@@ -179,36 +121,17 @@ body{
 
 <div class="wrapper">
 
-<!-- LEFT -->
 <div class="left">
 <h2>IKIZULIVE</h2>
-
-<h4>รหัสแอดมิน</h4>
-<input type="password" id="adminCode" placeholder="กรอกรหัสแอดมิน">
-<button onclick="checkAdmin()">เข้าสู่ระบบ</button>
-<div class="admin-status" id="adminStatus">ยังไม่ได้เข้าสู่ระบบ</div>
-
-<hr>
-
-<h4>เพิ่มหลายโพสต์</h4>
-<p>1 บรรทัด = 1 ลิงก์</p>
-<textarea id="linkInput" rows="6"></textarea>
-
-<p>คำแปล</p>
-<textarea id="translateInput" rows="4"></textarea>
-
-<button onclick="addPosts()">เพิ่มโพสต์</button>
 </div>
 
-<!-- CENTER -->
 <div class="center">
 <div id="posts"></div>
 </div>
 
-<!-- RIGHT -->
 <div class="right">
 <h3>Timeline</h3>
-<button class="timeline-btn" onclick="showAll(); closeTimeline()">แสดงทั้งหมด</button>
+<button class="timeline-btn" onclick="showAll()">แสดงทั้งหมด</button>
 <div id="timelineButtons"></div>
 </div>
 
@@ -218,35 +141,12 @@ body{
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, collection, addDoc, deleteDoc, updateDoc, doc, onSnapshot, query, orderBy, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-const ADMIN_PASSWORD = "6767";
-let isAdmin = false;
-
-window.checkAdmin = () => {
-  const input = document.getElementById("adminCode").value;
-  const status = document.getElementById("adminStatus");
-
-  if(input === ADMIN_PASSWORD){
-    isAdmin = true;
-    status.innerText = "เข้าสู่ระบบสำเร็จ ✅";
-    status.style.color = "green";
-  }else{
-    isAdmin = false;
-    status.innerText = "รหัสไม่ถูกต้อง ❌";
-    status.style.color = "red";
-  }
-};
-
+/* MOBILE */
 window.toggleTimeline = () => {
-  const panel = document.querySelector(".right");
-  panel.classList.toggle("active");
+  document.querySelector(".right").classList.toggle("active");
 }
 
-window.closeTimeline = () => {
-  const panel = document.querySelector(".right");
-  panel.classList.remove("active");
-}
-
-/* Firebase */
+/* FIREBASE */
 const firebaseConfig = {
   apiKey: "YOUR_API_KEY",
   authDomain: "ikizuliveth.firebaseapp.com",
@@ -272,96 +172,37 @@ function getDateFromTweetId(postId){
   return new Date(Number(timestamp));
 }
 
+/* 🚀 FAST RENDER */
 function render(posts){
   postsContainer.innerHTML="";
-  posts.forEach(p=>createPost(p));
-  if(window.twttr) window.twttr.widgets.load();
-}
 
-function createPost(post){
-  const div=document.createElement("div");
-  div.className="post-card";
+  const fragment = document.createDocumentFragment();
 
-  let tweetsHTML="";
-  post.postIds.forEach(id=>{
-    tweetsHTML+=`
-      <blockquote class="twitter-tweet">
-        <a href="https://twitter.com/i/status/${id}"></a>
-      </blockquote>
-    `;
+  posts.forEach(post=>{
+    const div=document.createElement("div");
+    div.className="post-card";
+
+    post.postIds.forEach(id=>{
+      const block=document.createElement("blockquote");
+      block.className="twitter-tweet";
+      block.innerHTML=`<a href="https://twitter.com/i/status/${id}"></a>`;
+      div.appendChild(block);
+    });
+
+    fragment.appendChild(div);
   });
 
-  div.innerHTML=`
-    ${tweetsHTML}
-    <div class="post-actions">
-      <button class="btn-dark" onclick="toggleTranslate('${post.id}')">ดูคำแปล</button>
-      <button class="btn-dark" onclick="editPost('${post.id}')">แก้ไขคำแปล</button>
-      <button class="btn-danger" onclick="deletePost('${post.id}')">ลบ</button>
-    </div>
-    <p id="trans-${post.id}" class="translation" style="display:none;">
-      ${post.content}
-    </p>
-  `;
+  postsContainer.appendChild(fragment);
 
-  postsContainer.appendChild(div);
-}
-
-window.toggleTranslate=id=>{
-  const el=document.getElementById("trans-"+id);
-  el.style.display = el.style.display==="none"?"block":"none";
-}
-
-window.deletePost=async id=>{
-  if(!isAdmin){
-    alert("คุณไม่มีสิทธิ์ลบโพสต์ ❌");
-    return;
-  }
-  await deleteDoc(doc(db,"posts",id));
-}
-
-window.editPost=async id=>{
-  if(!isAdmin){
-    alert("คุณไม่มีสิทธิ์แก้ไข ❌");
-    return;
-  }
-
-  const post = allPosts.find(p=>p.id===id);
-  const newContent=prompt("แก้ไขคำแปล:",post.content);
-  if(newContent===null) return;
-
-  await updateDoc(doc(db,"posts",id),{
-    content:newContent
+  // โหลด embed แบบ async เฉพาะ container
+  requestAnimationFrame(()=>{
+    if(window.twttr){
+      window.twttr.widgets.load(postsContainer);
+    }
   });
 }
 
-window.addPosts=async()=>{
-  const links=document.getElementById("linkInput").value.split("\n");
-  const translate=document.getElementById("translateInput").value;
-
-  const postIds=[];
-  for(let link of links){
-    const match=link.match(/status\/(\d+)/);
-    if(match) postIds.push(match[1]);
-  }
-
-  if(postIds.length===0) return;
-
-  const autoDate=getDateFromTweetId(postIds[0]);
-
-  await addDoc(postsRef,{
-    postIds,
-    content:translate,
-    createdAt:Timestamp.fromDate(autoDate)
-  });
-
-  document.getElementById("linkInput").value="";
-  document.getElementById("translateInput").value="";
-}
-
-window.showAll=()=>{
-  render(allPosts);
-  closeTimeline();
-};
+window.showAll=()=>render(allPosts);
 
 const q=query(postsRef,orderBy("createdAt","asc"));
 
@@ -387,10 +228,7 @@ onSnapshot(q,snapshot=>{
     const btn=document.createElement("button");
     btn.className="timeline-btn";
     btn.innerText=`เดือนที่ ${m} ปี ${y}`;
-    btn.onclick=()=>{
-      render(monthMap[key]);
-      closeTimeline();
-    };
+    btn.onclick=()=>render(monthMap[key]);
     timelineContainer.appendChild(btn);
   });
 
@@ -398,6 +236,7 @@ onSnapshot(q,snapshot=>{
 });
 </script>
 
+<!-- async สำคัญมาก -->
 <script async src="https://platform.twitter.com/widgets.js"></script>
 
 </body>
