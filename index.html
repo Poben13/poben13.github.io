@@ -12,6 +12,7 @@ body{
   background:#e9ecef;
 }
 
+/* MOBILE HEADER */
 .mobile-header{
   display:none;
   background:#111;
@@ -39,6 +40,7 @@ body{
   height:100vh;
 }
 
+/* LEFT PANEL */
 .left{
   width:260px;
   background:#f1f1f1;
@@ -67,6 +69,7 @@ body{
   margin-bottom:10px;
 }
 
+/* CENTER */
 .center{
   flex:1;
   padding:30px;
@@ -107,6 +110,7 @@ body{
   white-space:pre-line;
 }
 
+/* RIGHT */
 .right{
   width:260px;
   background:#f8f9fa;
@@ -126,10 +130,21 @@ body{
   border-radius:8px;
 }
 
+/* MOBILE */
 @media (max-width:900px){
-  .left{ display:none; }
-  .mobile-header{ display:flex; }
-  .wrapper{ flex-direction:column; height:auto; }
+
+  .left{
+    display:none;
+  }
+
+  .mobile-header{
+    display:flex;
+  }
+
+  .wrapper{
+    flex-direction:column;
+    height:auto;
+  }
 
   .right{
     position:fixed;
@@ -143,14 +158,20 @@ body{
     box-shadow:-2px 0 10px rgba(0,0,0,0.2);
   }
 
-  .right.active{ right:0; }
-  .center{ padding:15px; }
+  .right.active{
+    right:0;
+  }
+
+  .center{
+    padding:15px;
+  }
 }
 </style>
 </head>
 
 <body>
 
+<!-- MOBILE HEADER -->
 <div class="mobile-header">
   <div class="logo-mobile">IKIZULIVE</div>
   <button class="hamburger" onclick="toggleTimeline()">☰</button>
@@ -158,17 +179,19 @@ body{
 
 <div class="wrapper">
 
+<!-- LEFT -->
 <div class="left">
 <h2>IKIZULIVE</h2>
 
 <h4>รหัสแอดมิน</h4>
-<input type="password" id="adminCode">
+<input type="password" id="adminCode" placeholder="กรอกรหัสแอดมิน">
 <button onclick="checkAdmin()">เข้าสู่ระบบ</button>
 <div class="admin-status" id="adminStatus">ยังไม่ได้เข้าสู่ระบบ</div>
 
 <hr>
 
 <h4>เพิ่มหลายโพสต์</h4>
+<p>1 บรรทัด = 1 ลิงก์</p>
 <textarea id="linkInput" rows="6"></textarea>
 
 <p>คำแปล</p>
@@ -177,10 +200,12 @@ body{
 <button onclick="addPosts()">เพิ่มโพสต์</button>
 </div>
 
+<!-- CENTER -->
 <div class="center">
 <div id="posts"></div>
 </div>
 
+<!-- RIGHT -->
 <div class="right">
 <h3>Timeline</h3>
 <button class="timeline-btn" onclick="showAll(); closeTimeline()">แสดงทั้งหมด</button>
@@ -199,6 +224,7 @@ let isAdmin = false;
 window.checkAdmin = () => {
   const input = document.getElementById("adminCode").value;
   const status = document.getElementById("adminStatus");
+
   if(input === ADMIN_PASSWORD){
     isAdmin = true;
     status.innerText = "เข้าสู่ระบบสำเร็จ ✅";
@@ -211,13 +237,16 @@ window.checkAdmin = () => {
 };
 
 window.toggleTimeline = () => {
-  document.querySelector(".right").classList.toggle("active");
-};
+  const panel = document.querySelector(".right");
+  panel.classList.toggle("active");
+}
 
 window.closeTimeline = () => {
-  document.querySelector(".right").classList.remove("active");
-};
+  const panel = document.querySelector(".right");
+  panel.classList.remove("active");
+}
 
+/* Firebase */
 const firebaseConfig = {
   apiKey: "YOUR_API_KEY",
   authDomain: "ikizuliveth.firebaseapp.com",
@@ -236,6 +265,18 @@ const timelineContainer = document.getElementById("timelineButtons");
 
 let allPosts = [];
 let monthMap = {};
+
+function getDateFromTweetId(postId){
+  const twitterEpoch = 1288834974657n;
+  const timestamp = (BigInt(postId) >> 22n) + twitterEpoch;
+  return new Date(Number(timestamp));
+}
+
+function render(posts){
+  postsContainer.innerHTML="";
+  posts.forEach(p=>createPost(p));
+  if(window.twttr) window.twttr.widgets.load();
+}
 
 function createPost(post){
   const div=document.createElement("div");
@@ -263,55 +304,80 @@ function createPost(post){
   `;
 
   postsContainer.appendChild(div);
-
-  // โหลด embed เฉพาะโพสต์นี้ทันที
-  if(window.twttr){
-    window.twttr.widgets.load(div);
-  }
 }
 
 window.toggleTranslate=id=>{
   const el=document.getElementById("trans-"+id);
   el.style.display = el.style.display==="none"?"block":"none";
-};
+}
 
 window.deletePost=async id=>{
-  if(!isAdmin){ alert("คุณไม่มีสิทธิ์ลบโพสต์ ❌"); return; }
+  if(!isAdmin){
+    alert("คุณไม่มีสิทธิ์ลบโพสต์ ❌");
+    return;
+  }
   await deleteDoc(doc(db,"posts",id));
-};
+}
 
 window.editPost=async id=>{
-  if(!isAdmin){ alert("คุณไม่มีสิทธิ์แก้ไข ❌"); return; }
+  if(!isAdmin){
+    alert("คุณไม่มีสิทธิ์แก้ไข ❌");
+    return;
+  }
+
   const post = allPosts.find(p=>p.id===id);
   const newContent=prompt("แก้ไขคำแปล:",post.content);
   if(newContent===null) return;
-  await updateDoc(doc(db,"posts",id),{ content:newContent });
-};
+
+  await updateDoc(doc(db,"posts",id),{
+    content:newContent
+  });
+}
+
+window.addPosts=async()=>{
+  const links=document.getElementById("linkInput").value.split("\n");
+  const translate=document.getElementById("translateInput").value;
+
+  const postIds=[];
+  for(let link of links){
+    const match=link.match(/status\/(\d+)/);
+    if(match) postIds.push(match[1]);
+  }
+
+  if(postIds.length===0) return;
+
+  const autoDate=getDateFromTweetId(postIds[0]);
+
+  await addDoc(postsRef,{
+    postIds,
+    content:translate,
+    createdAt:Timestamp.fromDate(autoDate)
+  });
+
+  document.getElementById("linkInput").value="";
+  document.getElementById("translateInput").value="";
+}
 
 window.showAll=()=>{
-  postsContainer.innerHTML="";
-  allPosts.forEach(p=>createPost(p));
+  render(allPosts);
   closeTimeline();
 };
 
 const q=query(postsRef,orderBy("createdAt","asc"));
 
 onSnapshot(q,snapshot=>{
-  postsContainer.innerHTML="";
-  timelineContainer.innerHTML="";
   allPosts=[];
   monthMap={};
+  timelineContainer.innerHTML="";
 
   snapshot.forEach(docSnap=>{
     const data=docSnap.data();
     const post={id:docSnap.id,...data};
     allPosts.push(post);
 
-    // 🔥 แสดงทันทีทีละโพสต์ (ไม่รอครบก่อน)
-    createPost(post);
-
     const date=data.createdAt.toDate();
     const key=`${date.getMonth()+1}-${date.getFullYear()}`;
+
     if(!monthMap[key]) monthMap[key]=[];
     monthMap[key].push(post);
   });
@@ -322,12 +388,13 @@ onSnapshot(q,snapshot=>{
     btn.className="timeline-btn";
     btn.innerText=`เดือนที่ ${m} ปี ${y}`;
     btn.onclick=()=>{
-      postsContainer.innerHTML="";
-      monthMap[key].forEach(p=>createPost(p));
+      render(monthMap[key]);
       closeTimeline();
     };
     timelineContainer.appendChild(btn);
   });
+
+  render(allPosts);
 });
 </script>
 
